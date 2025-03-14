@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="section_1_topics" type="navigate_track.py" name="navigate_track_node"  output="screen" />
+</launch>
