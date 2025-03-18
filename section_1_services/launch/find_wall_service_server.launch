@@ -1,0 +1,7 @@
+<launch>
+  <node pkg ="section_1_services"
+        type="find_wall_service_server.py"
+        name="find_wall"
+        output="screen">
+  </node>
+</launch>
