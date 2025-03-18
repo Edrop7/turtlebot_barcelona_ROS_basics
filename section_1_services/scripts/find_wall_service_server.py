@@ -5,13 +5,21 @@ from geometry_msgs.msg import Twist
 from section_1_services.srv import FindWall, FindWallResponse
 from lidar_module import Lidar
 
-def rotate_robot_to_wall():
-    rospy.loginfo("Initiating turn to closest wall")
+def rotate_robot_to_wall(direction):
+    rospy.loginfo(f"Initiating turn to {direction} direction")
 
     lidar.get_min_ray()
     msg = Twist()
+    angle = 359
+    tol = 8 # angle tolerance
 
-    while not (lidar.min_ray['index'] < 363 and lidar.min_ray['index'] > 355):
+    if direction == 'front':
+        angle = 359
+    elif direction == 'terminal':
+        angle = 179
+
+    #maximal direciton tolerance
+    while not (lidar.min_ray['index'] < (angle) and lidar.min_ray['index'] > (angle-(2*tol))):
         lidar.get_min_ray()
         # lidar.read_min_ray()
         msg.angular.z = 0.2
@@ -20,7 +28,7 @@ def rotate_robot_to_wall():
     msg.angular.z = 0.0
     pub.publish(msg)
 
-    rospy.loginfo("Closest wall now in front of robot")
+    rospy.loginfo(f"Completed turn to {direction} wall")
 
     return None
 
@@ -47,8 +55,9 @@ def callback_service(request):
     lidar.get_min_ray()
     lidar.read_min_ray()
 
-    rotate_robot_to_wall()
+    rotate_robot_to_wall('front')
     move_robot_to_wall()
+    rotate_robot_to_wall('terminal')
 
     response = FindWallResponse()
     response.wallfound = True
