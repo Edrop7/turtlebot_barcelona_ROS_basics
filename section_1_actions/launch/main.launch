@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="section_1_actions" type="action_record_odom_server.py" name="action_record_odom_server" output="screen" />
+    <node pkg="section_1_actions" type="action_record_odom_client.py" name="action_record_odom_client" output="screen" />
+</launch>

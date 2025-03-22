@@ -24,7 +24,7 @@ class RecordOdomServer:
         self.cache_x = float(0)
         self.cache_y = float(0)
         self.cache_time = float(0)
-        self.expected_lap_time = float(75)
+        self.expected_lap_time = float(90)
         self.elapsed_time = float(0)
         self.speed = float(0.075)
 
@@ -53,6 +53,9 @@ class RecordOdomServer:
         rospy.loginfo("Displacement of robot returned to /result")  
 
     def odom_callback(self, msg):
+        displacement_sum = float()
+        displacement_x = float()
+        displacement_y = float()
 
         current_position = msg.pose.pose.position
         current_orientation = msg.pose.pose.orientation
@@ -62,6 +65,16 @@ class RecordOdomServer:
         current_point.z = current_orientation.z
 
         self._result.list_of_odoms.append(current_point)
+        rospy.loginfo(f"logging {current_point}")
+
+        displacement_x = (current_point.x - self.cache_x)
+        displacement_y = (current_point.y - self.cache_y)
+        displacement_sum = math.sqrt(displacement_x*displacement_x + displacement_y*displacement_y)
+
+        self.cache_x = current_point.x
+        self.cache_y = current_point.y
+
+        self._feedback.current_total += displacement_sum
 
         self._feedback.current_total = self.speed * self.elapsed_time
 
@@ -72,8 +85,27 @@ class RecordOdomServer:
 
     def check_if_track_complete(self):
         self.elapsed_time = time.time() - self.cache_time
+        tolerance = 0.5
         if self.elapsed_time > self.expected_lap_time:
-            return True
+            start_x = self._result.list_of_odoms[0].x
+            start_y = self._result.list_of_odoms[0].y
+            now_x = self._result.list_of_odoms[-1].x
+            now_y = self._result.list_of_odoms[-1].y
+
+            print(f"\n x: {start_x} vs {now_x} \n y: {start_y} vs {now_y}")
+
+            condition_x1 = now_x < (start_x + tolerance)
+            condition_x2 = now_x > (start_x - tolerance)
+            condition_y1 = now_y < (start_y + tolerance)
+            condition_y2 = now_y > (start_y - tolerance)
+
+            track_complete = condition_x1 and condition_x2 and condition_y1 and condition_y2
+
+            if track_complete:
+                rospy.loginfo("End of Track assumed: starting (x,y) close to end (x,y)")
+                return True
+            else:
+                return False
         else:
             return False
 
