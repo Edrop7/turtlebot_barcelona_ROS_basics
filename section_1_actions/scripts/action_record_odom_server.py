@@ -23,25 +23,31 @@ class RecordOdomServer:
         self.ctrl_c = False
         self.cache_x = float(0)
         self.cache_y = float(0)
+        self.cache_time = float(0)
 
     def goal_callback(self, goal):
         rospy.loginfo("Received goal, initializing odom recording")
+
+        # helper variable
         is_track_complete = False
+
         self._feedback.current_total = 0
+        self.cache_time = time.time()
 
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
+
         rospy.loginfo("Established subscriber to gather Odometry")
 
         #testing script
-        for _ in range(10):
-            time.sleep(1)
+        while not is_track_complete:
             self._as.publish_feedback(self._feedback)
+            time.sleep(1)
+            is_track_complete = self.check_if_track_complete()
+            
         rospy.loginfo("Odometry recording returned to /feedback")
 
         self._as.set_succeeded(self._result)
-        rospy.loginfo("Track completed! Displacement of robot returned to /result")
-
-        
+        rospy.loginfo("Displacement of robot returned to /result")  
 
     def odom_callback(self, msg):
         displacement_sum = float()
@@ -71,6 +77,30 @@ class RecordOdomServer:
 
     def shutdownhook(self):
         self.ctrl_c = True
+
+    def check_if_track_complete(self):
+        elapsed_time = time.time() - self.cache_time
+        tolerance = 0.5
+        if elapsed_time > 20:
+            start_x = self._result.list_of_odoms[0].x
+            start_y = self._result.list_of_odoms[0].y
+            now_x = self._result.list_of_odoms[-1].x
+            now_y = self._result.list_of_odoms[-1].y
+
+            condition_x1 = now_x < (start_x + tolerance)
+            condition_x2 = now_x > (start_x - tolerance)
+            condition_y1 = now_y < (start_y + tolerance)
+            condition_y2 = now_y > (start_y - tolerance)
+
+            track_complete = condition_x1 and condition_x2 and condition_y1 and condition_y2
+
+            if track_complete:
+                rospy.loginfo("End of Track assumed: starting (x,y) close to end (x,y)")
+                return True
+            else:
+                return False
+        else:
+            return False
 
 if __name__ == '__main__':
     rospy.init_node('record_odom')
